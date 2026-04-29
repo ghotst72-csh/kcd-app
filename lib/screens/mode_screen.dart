@@ -39,13 +39,13 @@ class ModeScreen extends StatelessWidget {
             const SizedBox(height: 20),
 
             _buildModeCard(
-              context,
-              icon: Icons.search,
-              title: '일반 검색',
-              subtitle: '빠르게 검색할 수 있어요',
-              color: const Color(0xFF2563EB),
-              isLargeText: false,
-            ),
+		  context,
+		  icon: Icons.search,
+		  title: '일반 검색',
+		  subtitle: '빠르게 검색할 수 있어요',
+		  color: const Color(0xFF2563EB),
+		  isLargeText: false,
+		),
 
             const SizedBox(height: 12),
 

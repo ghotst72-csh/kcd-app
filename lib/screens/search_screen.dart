@@ -1,16 +1,15 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import '../models/disease.dart';
-import '../services/disease_service.dart';
-import 'detail_screen.dart';
+import 'package:flutter/services.dart';
 
 class SearchScreen extends StatefulWidget {
-  final DiseaseService diseaseService;
+  final dynamic diseaseService;
   final bool initialIsLargeText;
 
   const SearchScreen({
     super.key,
-    required this.diseaseService,
-    required this.initialIsLargeText,
+    this.diseaseService,
+    this.initialIsLargeText = false,
   });
 
   @override
@@ -18,284 +17,107 @@ class SearchScreen extends StatefulWidget {
 }
 
 class _SearchScreenState extends State<SearchScreen> {
-  late bool isLargeText;
-  final TextEditingController _searchController = TextEditingController();
-
-  List<Disease> _searchResults = [];
-  bool _isLoading = true;
+  List<Map<String, dynamic>> _all = [];
+  List<Map<String, dynamic>> _filtered = [];
 
   @override
-    void initState() {
-      super.initState();
-      isLargeText = widget.initialIsLargeText;
-      _loadDiseases();
-    }
-    
-    Future<void> _loadDiseases() async {
-      await widget.diseaseService.loadDiseases();
-    
-      if (!mounted) return;
-    
-      setState(() {
-        _searchResults = [];
-        _isLoading = false;
-      });
-    }
+  void initState() {
+    super.initState();
+    _load();
+  }
 
-  void _performSearch(String query) {
+  Future<void> _load() async {
+    final jsonStr = await rootBundle.loadString('assets/data/kcd_search.json');
+    final List data = json.decode(jsonStr);
+
     setState(() {
-      if (query.trim().isEmpty) {
-        _searchResults = [];
-      } else {
-        _searchResults = widget.diseaseService.search(query);
+      _all = data.cast<Map<String, dynamic>>();
+      _filtered = _all;
+    });
+  }
+
+  void _search(String q) {
+    final query = q.trim().toLowerCase();
+
+    setState(() {
+      if (query.isEmpty) {
+        _filtered = _all;
+        return;
       }
+
+      _filtered = _all.where((e) {
+        final name = (e['name'] ?? '').toString();
+        final code = (e['code'] ?? '').toString();
+        final initial = (e['initial'] ?? '').toString();
+
+        return name.contains(query) ||
+            code.toLowerCase().contains(query) ||
+            initial.contains(query);
+      }).toList();
     });
   }
 
   @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final double titleFontSize = isLargeText ? 26.0 : 17.0;
-    final double subFontSize = isLargeText ? 18.0 : 13.0;
-    final double codeFontSize = isLargeText ? 26.0 : 15.0;
-    final double cardPadding = isLargeText ? 24.0 : 16.0;
+    final isLarge = widget.initialIsLargeText;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF3F5F8),
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        foregroundColor: Colors.black87,
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildModeToggle('일반', !isLargeText),
-            const SizedBox(width: 8),
-            _buildModeToggle('큰글자', isLargeText),
-          ],
-        ),
+        title: Text(isLarge ? '큰글자 검색' : '질병 검색'),
         centerTitle: true,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black87,
+        elevation: 0,
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFFAFBFF),
-              Color(0xFFF3F5F8),
-            ],
-          ),
-        ),
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 18, 16, 10),
-              child: _buildSearchBox(),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 18),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  '검색 결과 ${_searchResults.length}건',
-                  style: TextStyle(
-                    fontSize: isLargeText ? 17 : 13,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF6B7280),
-                  ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: TextField(
+              onChanged: _search,
+              style: TextStyle(fontSize: isLarge ? 22 : 17),
+              decoration: InputDecoration(
+                hintText: '질병명, 코드, 초성 검색',
+                filled: true,
+                fillColor: Colors.white,
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(18),
+                  borderSide: BorderSide.none,
                 ),
               ),
             ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _searchResults.isEmpty
-                      ? Center(
-                          child: Text(
-                            '검색 결과가 없습니다.',
+          ),
+          Expanded(
+            child: _filtered.isEmpty
+                ? const Center(child: Text('검색 결과가 없습니다'))
+                : ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                    itemCount: _filtered.length,
+                    itemBuilder: (context, index) {
+                      final item = _filtered[index];
+
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        child: ListTile(
+                          title: Text(
+                            item['name']?.toString() ?? '',
                             style: TextStyle(
-                              fontSize: isLargeText ? 20 : 15,
-                              color: Colors.grey.shade600,
+                              fontSize: isLarge ? 22 : 17,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                        )
-                      : ListView.builder(
-                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                          itemCount: _searchResults.length,
-                          itemBuilder: (context, index) {
-                            final disease = _searchResults[index];
-
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(18),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.05),
-                                    blurRadius: 14,
-                                    offset: const Offset(0, 6),
-                                  ),
-                                ],
-                              ),
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(18),
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => DetailScreen(
-                                        disease: disease,
-                                        isLargeText: isLargeText,
-                                      ),
-                                    ),
-                                  );
-                                },
-                                child: Padding(
-                                  padding: EdgeInsets.all(cardPadding),
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              disease.name,
-                                              maxLines: isLargeText ? 2 : 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(
-                                                fontSize: titleFontSize,
-                                                fontWeight: FontWeight.w800,
-                                                color: const Color(0xFF111827),
-                                              ),
-                                            ),
-                                            const SizedBox(height: 7),
-                                            Text(
-                                              disease.engName.isNotEmpty
-                                                  ? disease.engName
-                                                  : disease.chosung,
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(
-                                                fontSize: subFontSize,
-                                                fontWeight: FontWeight.w500,
-                                                color: const Color(0xFF6B7280),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Text(
-                                        disease.code,
-                                        style: TextStyle(
-                                          fontSize: codeFontSize,
-                                          fontWeight: FontWeight.w900,
-                                          color: Colors.black,
-                                        ),
-                                      ),
-                                      if (!isLargeText) ...[
-                                        const SizedBox(width: 4),
-                                        const Icon(
-                                          Icons.chevron_right,
-                                          color: Color(0xFF9CA3AF),
-                                          size: 20,
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
+                          subtitle: Text(
+                            item['code']?.toString() ?? '',
+                            style: TextStyle(fontSize: isLarge ? 18 : 14),
+                          ),
                         ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSearchBox() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
+                      );
+                    },
+                  ),
           ),
         ],
-      ),
-      child: TextField(
-        controller: _searchController,
-        onChanged: _performSearch,
-        style: TextStyle(
-          fontSize: isLargeText ? 21 : 16,
-          fontWeight: FontWeight.w600,
-        ),
-        decoration: InputDecoration(
-          hintText: '질병명, 코드, 초성 검색',
-          hintStyle: TextStyle(
-            color: const Color(0xFF9CA3AF),
-            fontSize: isLargeText ? 21 : 16,
-            fontWeight: FontWeight.w500,
-          ),
-          prefixIcon: const Icon(
-            Icons.search,
-            color: Color(0xFF2563EB),
-          ),
-          suffixIcon: _searchController.text.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () {
-                    _searchController.clear();
-                    _performSearch('');
-                  },
-                )
-              : null,
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 18,
-            vertical: 18,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildModeToggle(String title, bool isSelected) {
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          isLargeText = title == '큰글자';
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF2563EB) : Colors.grey.shade200,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          title,
-          style: TextStyle(
-            color: isSelected ? Colors.white : Colors.grey.shade700,
-            fontWeight: FontWeight.bold,
-            fontSize: 14,
-          ),
-        ),
       ),
     );
   }
