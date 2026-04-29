@@ -22,3 +22,4 @@ flutter:
   assets:
     - assets/data/kcd_sample.json
     - assets/images/kcd_logo.png
+    - assets/data/kcd_tree.json

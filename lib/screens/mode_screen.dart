@@ -1,3 +1,5 @@
+import '../services/kcd_tree_service.dart';
+import 'classification_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'search_screen.dart';
@@ -74,8 +76,17 @@ class ModeScreen extends StatelessWidget {
                   child: _buildQuickMenuCard(
                     icon: CupertinoIcons.square_grid_2x2_fill,
                     title: '전체분류',
-                    color: const Color(0xFFFF8A00),
-                    onTap: () {},
+			color: const Color(0xFFFF8A00),
+			onTap: () {
+			  Navigator.push(
+			    context,
+			    MaterialPageRoute(
+			      builder: (context) => ClassificationScreen(
+				  treeService: KcdTreeService(),
+				),
+			    ),
+			  );
+			},
                   ),
                 ),
                 const SizedBox(width: 10),
